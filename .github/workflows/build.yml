@@ -50,6 +50,10 @@ jobs:
         if: inputs.name == 'Linux'
         run: sudo apt-get install -y libvlc-dev libvlccore-dev
 
+      - name: Install Wayland Scanner
+        if: inputs.name == 'Linux'
+        run: sudo apt-get install -y libwayland-bin wayland-protocols
+
       - name: Setup XCode
         if: inputs.name == 'iOS'
         uses: maxim-lobanov/setup-xcode@master
