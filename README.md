@@ -64,3 +64,53 @@ Full credits can be found in-game, or in the `credits.json` file which is locate
 - [Tom Fulp](https://twitter.com/tomfulp) - For being a great guy and for Newgrounds
 - [JohnnyUtah](https://twitter.com/JohnnyUtahNG/) - Voice of Tankman
 - [L0Litsmonica](https://twitter.com/L0Litsmonica) - Voice of Mommy Mearest
+
+# Using This Template
+
+This repository is a build-ready template based on the base Friday Night Funkin' source, set up to compile for Windows, Linux, MacOS, Android, and iOS via GitHub Actions — including 32-bit and 64-bit Android builds and an unsigned IPA for iOS.
+
+## Requirements
+
+- [Haxe 4.3.7](https://haxe.org/download/)
+- [HMM](https://lib.haxe.org/p/hmm) for dependency management
+- Git, with submodule support (this repo pulls `art` and `assets` from FunkinCrew as submodules)
+
+## Setting Up Locally
+
+```bash
+git clone --recurse-submodules <your-fork-url>
+cd Funkin-Template
+haxelib install hmm
+haxelib run hmm install
+```
+
+If you already cloned without `--recurse-submodules`, run:
+
+```bash
+git submodule update --init --recursive
+```
+
+## Building Locally
+
+Once dependencies are installed, build with Lime for your target platform:
+
+```bash
+haxelib run lime build windows
+haxelib run lime build linux
+haxelib run lime build mac
+haxelib run lime build android
+haxelib run lime build ios -nosign
+```
+
+See the [Compiling Guide](/docs/COMPILING.md) for platform-specific setup (Android SDK/NDK, Xcode, etc).
+
+## Building via GitHub Actions
+
+This template ships with two reusable workflows:
+
+- **`.github/workflows/main.yml`** — a manually triggered (`workflow_dispatch`) matrix build that covers every supported platform: Windows (x64/x32), Linux, MacOS, Android (x64/x32), and iOS.
+- **`.github/workflows/build.yml`** — the reusable build job called by `main.yml` for each matrix entry; handles Haxe/Xcode setup, dependency installation, platform-specific configuration, compiling, IPA packaging, and artifact upload.
+
+To run a full build, go to the **Actions** tab of your repo, select **Main**, and click **Run workflow**. Each platform's output is uploaded as a separate downloadable artifact once the job finishes.
+
+To add or change a target platform, edit the `matrix.include` list in `main.yml` — each entry defines the runner OS, Lime build args, and where the resulting artifact is found.
