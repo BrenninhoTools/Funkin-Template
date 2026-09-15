@@ -23,33 +23,22 @@ import openfl.media.Video;
 import openfl.net.NetStream;
 import funkin.util.WindowUtil;
 
-using funkin.util.AnsiUtil;
-
-/**
- * The main class which initializes HaxeFlixel and starts the game in its initial state.
- */
 class Main extends Sprite
 {
-  var gameWidth:Int = 1280; // Width of the game in pixels (might be less / more in actual pixels depending on your zoom).
-  var gameHeight:Int = 720; // Height of the game in pixels (might be less / more in actual pixels depending on your zoom).
-  var initialState:Class<FlxState> = funkin.InitState; // The FlxState the game starts with.
-  var zoom:Float = -1; // If -1, zoom is automatically calculated to fit the window dimensions.
-  var skipSplash:Bool = true; // Whether to skip the flixel splash screen that appears in release mode.
-
-  // You can pretty much ignore everything from here on - your code should go in your states.
+  var gameWidth:Int = 1280;
+  var gameHeight:Int = 720;
+  var initialState:Class<FlxState> = funkin.InitState;
+  var zoom:Float = -1;
+  var skipSplash:Bool = true;
 
   public static function main():Void
   {
-    // Set the current working directory for Android and iOS devices
     #if android
-    // On Android use External Files Dir.
     Sys.setCwd(haxe.io.Path.addTrailingSlash(extension.androidtools.content.Context.getExternalFilesDir()));
     #elseif ios
-    // On iOS use Documents Dir.
     Sys.setCwd(haxe.io.Path.addTrailingSlash(lime.system.System.documentsDirectory));
     #end
 
-    // We need to make the crash handler LITERALLY FIRST so nothing EVER gets past it.
     CrashHandler.initialize();
     CrashHandler.queryStatus();
 
@@ -60,16 +49,11 @@ class Main extends Sprite
   {
     super();
 
-    // Initialize custom logging.
     haxe.Log.trace = funkin.util.logging.AnsiTrace.trace;
     funkin.util.logging.AnsiTrace.traceBF();
 
-    // Get OpenFL to stop complaining so much.
-    // You can remove this line if you want to read debug messages.
     openfl.utils._internal.Log.level = openfl.utils._internal.Log.LogLevel.INFO;
 
-    // Load mods to override assets.
-    // TODO: Replace with loadEnabledMods() once the user can configure the mod list.
     funkin.modding.PolymodHandler.loadAllMods();
 
     if (stage != null)
@@ -90,23 +74,17 @@ class Main extends Sprite
     }
 
     #if (!html5 && !mobile)
-    // Force-kill the game to prevent background processing.
     openfl.Lib.application.onExit.add((_) ->
     {
-      // Dispose of cached audio and textures.
       funkin.audio.FunkinSound.stopAllAudio(true, true);
       funkin.FunkinMemory.purgeCache(true);
 
-      // Dispose of any assets still in the OpenFL cache, just incase.
       openfl.Assets.cache.clear();
-
-      trace(' EXITING '.bold().bg_red() + ' Resources are disposed, Game is closing now.');
 
       Sys.exit(0);
     }, 99);
     #end
 
-    // Manually crash the game when using a software renderer in order to give a nicer error message.
     var context = stage.window.context.type;
     if (context != WEBGL && context != OPENGL && context != OPENGLES)
     {
@@ -128,9 +106,6 @@ class Main extends Sprite
     setupGame();
   }
 
-  /**
-   * The debug display at the top left.
-   */
   public static var debugDisplay:FunkinDebugDisplay;
 
   function setupGame():Void
@@ -139,39 +114,22 @@ class Main extends Sprite
     initHaxeUI();
     #end
 
-    // addChild gets called by the user settings code.
     debugDisplay = new FunkinDebugDisplay(10, 10, 0xFFFFFF);
 
-    // Add this signal so the player can toggle the debug display using a hotkey.
     FlxG.signals.postUpdate.add(handleDebugDisplayKeys);
 
     #if mobile
-    // Add this signal so we can reposition and resize the memory and fps counter.
     FlxG.signals.preUpdate.add(repositionCounters.bind(true));
     #end
 
-    // George recommends binding the save before FlxGame is created.
     Save.load();
 
     #if hxvlc
-    // Initialize hxvlc's Handle here so the videos are loading faster.
-    Handle.initAsync(function(success:Bool):Void
-    {
-      if (success)
-      {
-        trace(' HXVLC '.bold().bg_orange() + ' LibVLC instance initialized!');
-      }
-      else
-      {
-        trace(' HXVLC '.bold().bg_orange() + ' LibVLC instance failed to initialize!');
-      }
-    });
+    Handle.initAsync(function(success:Bool):Void {});
     #end
 
     WindowUtil.setVSyncMode(funkin.Preferences.vsyncMode);
 
-    // Force a `FunkinCamera` to be the default camera.
-    // This allows the blend mode shader to work everywhere.
     untyped FlxG.cameras = new funkin.graphics.FunkinCameraFrontEnd();
 
     var framerate:Int = Preferences.unlockedFramerate ? 0 : Preferences.framerate;
@@ -179,9 +137,6 @@ class Main extends Sprite
     var game:FlxGame = new FlxGame(gameWidth, gameHeight, initialState, framerate, framerate, skipSplash,
       (FlxG.stage.window.fullscreen || Preferences.autoFullscreen));
 
-    // FlxG.game._customSoundTray wants just the class, it calls new from
-    // create() in there, which gets called when it's added to the stage
-    // which is why it needs to be added before addChild(game) here
     @:privateAccess
     game._customSoundTray = funkin.ui.options.FunkinSoundTray;
 
@@ -197,30 +152,17 @@ class Main extends Sprite
     #end
 
     #if mobile
-    // Reposition and resize the memory and fps counter without lerping.
     repositionCounters(false);
-    #end
-
-    #if hxcpp_debug_server
-    trace('hxcpp_debug_server is enabled! You can now connect to the game with a debugger.');
-    #else
-    trace('hxcpp_debug_server is disabled! This build does not support debugging.');
     #end
   }
 
   #if FEATURE_HAXEUI
   function initHaxeUI():Void
   {
-    // This has to come before Toolkit.init since locales get initialized there
     haxe.ui.locale.LocaleManager.instance.autoSetLocale = false;
-    // Calling this before any HaxeUI components get used is important:
-    // - It initializes the theme styles.
-    // - It scans the class path and registers any HaxeUI components.
     haxe.ui.Toolkit.init();
-    haxe.ui.Toolkit.theme = 'dark'; // don't be cringe
-    // haxe.ui.Toolkit.theme = 'light'; // embrace cringe
+    haxe.ui.Toolkit.theme = 'dark';
     haxe.ui.Toolkit.autoScale = false;
-    // Don't focus on UI elements when they first appear.
     haxe.ui.focus.FocusManager.instance.autoFocus = false;
     funkin.input.Cursor.registerHaxeUICursors();
     haxe.ui.tooltips.ToolTipManager.defaultDelay = 200;
@@ -249,7 +191,6 @@ class Main extends Sprite
   #if mobile
   function repositionCounters(lerp:Bool):Void
   {
-    // Calling this so it gets scaled based on the resolution of the game and device's resolution.
     var scale:Float = Math.max(Math.min(FlxG.stage.stageWidth / FlxG.width, FlxG.stage.stageHeight / FlxG.height), 1);
 
     if (debugDisplay != null)
