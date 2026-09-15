@@ -7,9 +7,6 @@ import openfl.utils.AssetType;
 import funkin.util.macro.ConsoleMacro;
 import haxe.io.Path;
 
-/**
- * A core class which handles determining asset paths.
- */
 @:nullSafety
 class Paths implements ConsoleClass
 {
@@ -17,28 +14,19 @@ class Paths implements ConsoleClass
 
   public static function setCurrentLevel(name:Null<String>):Void
   {
-    if (name == null)
-    {
-      currentLevel = null;
-    }
-    else
-    {
-      currentLevel = name.toLowerCase();
-    }
+    currentLevel = name == null ? null : name.toLowerCase();
   }
 
   public static function stripLibrary(path:String):String
   {
     var parts:Array<String> = path.split(':');
-    if (parts.length < 2) return path;
-    return parts[1];
+    return parts.length < 2 ? path : parts[1];
   }
 
   public static function getLibrary(path:String):String
   {
     var parts:Array<String> = path.split(':');
-    if (parts.length < 2) return 'preload';
-    return parts[0];
+    return parts.length < 2 ? 'preload' : parts[0];
   }
 
   static function getPath(file:String, type:AssetType, library:Null<String>):String
@@ -51,15 +39,15 @@ class Paths implements ConsoleClass
       if (Assets.exists(levelPath, type)) return levelPath;
     }
 
-    var levelPath:String = getLibraryPathForce(file, 'shared');
-    if (Assets.exists(levelPath, type)) return levelPath;
+    var sharedPath:String = getLibraryPathForce(file, 'shared');
+    if (Assets.exists(sharedPath, type)) return sharedPath;
 
     return getPreloadPath(file);
   }
 
-  public static function getLibraryPath(file:String, library = 'preload'):String
+  public static function getLibraryPath(file:String, library:String = 'preload'):String
   {
-    return if (library == 'preload' || library == 'default') getPreloadPath(file); else getLibraryPathForce(file, library);
+    return (library == 'preload' || library == 'default') ? getPreloadPath(file) : getLibraryPathForce(file, library);
   }
 
   static inline function getLibraryPathForce(file:String, library:String):String
@@ -79,7 +67,7 @@ class Paths implements ConsoleClass
 
   public static function animateAtlas(path:String, ?library:String):String
   {
-    return getLibraryPath('images/$path', library);
+    return getLibraryPath('images/$path', library ?? 'preload');
   }
 
   public static function txt(key:String, ?library:String):String
@@ -107,7 +95,7 @@ class Paths implements ConsoleClass
     return getPath('data/$key.json', TEXT, library);
   }
 
-  public static function srt(key:String, ?library:String, ?directory:String = 'data/'):String
+  public static function srt(key:String, ?library:String, directory:String = 'data/'):String
   {
     return getPath('$directory$key.srt', TEXT, library);
   }
@@ -129,31 +117,19 @@ class Paths implements ConsoleClass
 
   public static function videos(key:String, ?library:String):String
   {
-    final path:Path = new Path(key);
+    var path:Path = new Path(key);
+    var resolvedLibrary:String = library ?? 'videos';
 
-    if (path.ext != null)
-    {
-      return getPath('videos/${path.file}.${path.ext}', BINARY, library ?? 'videos');
-    }
-
-    return getPath('videos/$key.${Constants.EXT_VIDEO}', BINARY, library ?? 'videos');
+    return path.ext != null ? getPath('videos/${path.file}.${path.ext}', BINARY, resolvedLibrary) : getPath('videos/$key.${Constants.EXT_VIDEO}', BINARY,
+      resolvedLibrary);
   }
 
-  public static function voices(song:String, ?suffix:String = ''):String
+  public static function voices(song:String, suffix:String = ''):String
   {
-    if (suffix == null) suffix = ''; // no suffix, for a sorta backwards compatibility with older-ish voice files
-
     return 'songs:assets/songs/${song.toLowerCase()}/Voices$suffix.${Constants.EXT_SOUND}';
   }
 
-  /**
-   * Gets the path to an `Inst.mp3/ogg` song instrumental from songs:assets/songs/`song`/
-   * @param song name of the song to get instrumental for
-   * @param suffix any suffix to add to end of song name, used for `-erect` variants usually
-   * @param withExtension if it should return with the audio file extension `.mp3` or `.ogg`.
-   * @return String
-   */
-  public static function inst(song:String, ?suffix:String = '', withExtension:Bool = true):String
+  public static function inst(song:String, suffix:String = '', withExtension:Bool = true):String
   {
     var ext:String = withExtension ? '.${Constants.EXT_SOUND}' : '';
     return 'songs:assets/songs/${song.toLowerCase()}/Inst$suffix$ext';
@@ -181,17 +157,7 @@ class Paths implements ConsoleClass
 
   public static function getAnimateAtlas(key:String, ?library:String, settings:AtlasSpriteSettings):FlxAnimateFrames
   {
-    var assetLibrary:String = library ?? '';
-    var graphicKey:String = '';
-
-    if (assetLibrary != '')
-    {
-      graphicKey = Paths.animateAtlas(key, assetLibrary);
-    }
-    else
-    {
-      graphicKey = Paths.animateAtlas(key);
-    }
+    var graphicKey:String = library != null ? Paths.animateAtlas(key, library) : Paths.animateAtlas(key);
 
     var validatedSettings:AtlasSpriteSettings = {
       swfMode: settings?.swfMode ?? false,
@@ -206,7 +172,6 @@ class Paths implements ConsoleClass
       useRenderTexture: settings?.useRenderTexture ?? false
     };
 
-    // Validate asset path.
     if (!Assets.exists('${graphicKey}/Animation.json'))
     {
       throw 'No Animation.json file exists at the specified path (${graphicKey})';
