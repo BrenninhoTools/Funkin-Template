@@ -54,7 +54,6 @@ class Project extends HXProject
     "tutorial", "week1", "week2", "week3", "week4", "week5", "week6", "week7", "weekend1", "sserafim"
   ];
 
-  var flagDefs:Array<FeatureFlagDef> = [];
   var flagCache:Map<String, FeatureFlag> = new Map();
 
   public function new()
@@ -80,7 +79,6 @@ class Project extends HXProject
       return;
     }
 
-    registerFeatureFlags();
     configureFeatureFlags();
     configureCompileDefines();
     configureIncludeMacros();
@@ -203,9 +201,7 @@ class Project extends HXProject
 
   function configureAndroidWindowFlags()
   {
-    var excludeArmv7:Bool = this.haxedefs.exists("EXCLUDE_ARMV7");
-
-    if (excludeArmv7)
+    if (this.haxedefs.exists("EXCLUDE_ARMV7"))
     {
       this.excludeArchitectures.push(Architecture.ARMV7);
     }
@@ -301,9 +297,9 @@ class Project extends HXProject
     }
   }
 
-  function registerFeatureFlags():Void
+  function registerFeatureFlags():Array<FeatureFlagDef>
   {
-    flagDefs = [
+    return [
       {name: "GITHUB_BUILD", enabled: (p) -> false},
       {name: "EXCLUDE_ARMV7", enabled: (p) -> false},
       {name: "HARDCODED_CREDITS", enabled: (p) -> true},
@@ -374,6 +370,8 @@ class Project extends HXProject
 
   function configureFeatureFlags()
   {
+    var flagDefs:Array<FeatureFlagDef> = registerFeatureFlags();
+
     for (def in flagDefs)
     {
       flag(def.name).apply(this, def.enabled(this));
@@ -539,6 +537,30 @@ class Project extends HXProject
     app.path = buildDir;
   }
 
+  @:nullSafety(Off)
+  function pushConfigXmlChild(key:String, xml:Xml):Void
+  {
+    var entry = config.get(key);
+    var rendered = Printer.print(xml, true);
+
+    if (entry.xmlChildren != null)
+    {
+      entry.xmlChildren.push(rendered);
+    }
+    else
+    {
+      entry.xmlChildren = [rendered];
+    }
+  }
+
+  @:nullSafety(Off)
+  function pushConfigArrayString(key:String, value:String):Void
+  {
+    var existing = config.getArrayString(key);
+
+    config.set(key, existing != null ? existing.concat([value]) : [value]);
+  }
+
   function configureAndroid()
   {
     javaPaths.push(Path.join([SOURCE_DIR, 'funkin/external/android/java']));
@@ -556,17 +578,7 @@ class Project extends HXProject
     providerIntentFilter.addChild(providerAction);
     modsFolderProvider.addChild(providerIntentFilter);
 
-    @:nullSafety(Off)
-    {
-      if (config.get('android.application').xmlChildren != null)
-      {
-        config.get('android.application').xmlChildren.push(Printer.print(modsFolderProvider, true));
-      }
-      else
-      {
-        config.get('android.application').xmlChildren = [Printer.print(modsFolderProvider, true)];
-      }
-    }
+    pushConfigXmlChild('android.application', modsFolderProvider);
 
     final intentFilter:Xml = Xml.createElement('intent-filter');
     final action:Xml = Xml.createElement('action');
@@ -598,17 +610,7 @@ class Project extends HXProject
       }
     }
 
-    @:nullSafety(Off)
-    {
-      if (config.get('android.activity').xmlChildren != null)
-      {
-        config.get('android.activity').xmlChildren.push(Printer.print(intentFilter, true));
-      }
-      else
-      {
-        config.get('android.activity').xmlChildren = [Printer.print(intentFilter, true)];
-      }
-    }
+    pushConfigXmlChild('android.activity', intentFilter);
 
     final extensions:Null<Array<String>> = config.getArrayString('android.extension');
 
@@ -625,17 +627,7 @@ class Project extends HXProject
   {
     final documentTypes:String = File.getContent("documentTypes.plist");
 
-    @:nullSafety(Off)
-    {
-      if (config.getArrayString('ios.info-plist-children') != null)
-      {
-        config.set('ios.info-plist-children', config.getArrayString('ios.info-plist-children').concat([documentTypes]));
-      }
-      else
-      {
-        config.set('ios.info-plist-children', [documentTypes]);
-      }
-    }
+    pushConfigArrayString('ios.info-plist-children', documentTypes);
   }
 
   function configurePolymod()
@@ -1061,9 +1053,7 @@ class Project extends HXProject
 
   public function setHaxedef(name:String, ?value:String):Void
   {
-    if (value == null) value = "";
-
-    this.haxedefs.set(name, value);
+    this.haxedefs.set(name, value ?? "");
   }
 
   public function unsetHaxedef(name:String):Void
@@ -1248,6 +1238,46 @@ class Project extends HXProject
   @SuppressWarnings('checkstyle:Dynamic')
   function checkLibraries():Void
   {
+    var differentLibraries:Map<String, Array<String>> = collectDifferentLibraries();
+
+    if (Lambda.count(differentLibraries) == 0) return;
+
+    warn("Some libraries differ from the versions defined in hmm.json.".bold().yellow());
+    warn("To ensure consistency, it's recommended to stop the build and run `hmm reinstall [library]`.".bold().yellow());
+    warn("If you're intentionally using development builds or newer versions, you can ignore this warning.".bold().yellow());
+
+    Sys.println('');
+
+    for (libraryName in differentLibraries.keys())
+    {
+      var infos:Null<Array<String>> = differentLibraries.get(libraryName);
+
+      if (infos == null) continue;
+
+      var devPath:String = infos[0];
+      var currentVersion:String = infos[1];
+      var expectedVersion:String = infos[2];
+
+      if (haxe.io.Path.isAbsolute(devPath))
+      {
+        Sys.println("- " + libraryName.replace(",", ".") + " (Development Build)".bright_cyan());
+        Sys.println(("   Path:     " + haxe.io.Path.removeTrailingSlashes(devPath)).bright_blue());
+      }
+      else
+      {
+        Sys.println("- " + libraryName.replace(",", "."));
+      }
+
+      Sys.println(("   Current:  " + currentVersion).red());
+      Sys.println(("   Expected: " + expectedVersion).green());
+    }
+
+    Sys.println('');
+  }
+
+  @SuppressWarnings('checkstyle:Dynamic')
+  function collectDifferentLibraries():Map<String, Array<String>>
+  {
     var differentLibraries:Map<String, Array<String>> = new Map<String, Array<String>>();
     var hmmData:Dynamic = haxe.Json.parse(sys.io.File.getContent(#if ios '../../../../../' + #end 'hmm.json'));
     var dependencies:Array<Dynamic> = cast hmmData.dependencies;
@@ -1290,67 +1320,28 @@ class Project extends HXProject
       }
     }
 
-    if (Lambda.count(differentLibraries) > 0)
-    {
-      warn("Some libraries differ from the versions defined in hmm.json.".bold().yellow());
-      warn("To ensure consistency, it's recommended to stop the build and run `hmm reinstall [library]`.".bold().yellow());
-      warn("If you're intentionally using development builds or newer versions, you can ignore this warning.".bold().yellow());
-
-      Sys.println('');
-
-      for (libraryName in differentLibraries.keys())
-      {
-        var infos:Null<Array<String>> = differentLibraries.get(libraryName);
-
-        if (infos == null) continue;
-
-        var devPath:String = infos[0];
-        var currentVersion:String = infos[1];
-        var expectedVersion:String = infos[2];
-
-        if (haxe.io.Path.isAbsolute(devPath))
-        {
-          Sys.println("- " + libraryName.replace(",", ".") + " (Development Build)".bright_cyan());
-          Sys.println(("   Path:     " + haxe.io.Path.removeTrailingSlashes(devPath)).bright_blue());
-        }
-        else
-        {
-          Sys.println("- " + libraryName.replace(",", "."));
-        }
-
-        Sys.println(("   Current:  " + currentVersion).red());
-        Sys.println(("   Expected: " + expectedVersion).green());
-      }
-
-      Sys.println('');
-    }
+    return differentLibraries;
   }
 
   static function readLibraryCurrentVersion(libraryName:String):String
   {
     var path = getLibraryCurrentFile(libraryName);
 
-    if (sys.FileSystem.exists(path)) return sys.io.File.getContent(path).trim();
-
-    return '';
+    return sys.FileSystem.exists(path) ? sys.io.File.getContent(path).trim() : '';
   }
 
   static function readLibraryDev(libraryName:String):String
   {
     var path = getLibraryDevFile(libraryName);
 
-    if (sys.FileSystem.exists(path)) return sys.io.File.getContent(path).trim();
-
-    return '';
+    return sys.FileSystem.exists(path) ? sys.io.File.getContent(path).trim() : '';
   }
 
   static function readLibraryGitCommitHash(libraryName:String):String
   {
-    var commit:String = '';
-
     var gitProccess = new sys.io.Process("git", ["-C", getLibraryGitPath(libraryName), "rev-parse", "HEAD"]);
     gitProccess.exitCode(true);
-    commit = gitProccess.stdout.readAll().toString().trim();
+    var commit:String = gitProccess.stdout.readAll().toString().trim();
 
     if (commit.length <= 0)
     {
