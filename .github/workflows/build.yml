@@ -61,6 +61,9 @@ jobs:
           haxelib install hmm --quiet
           haxelib run hmm install --quiet
 
+      - name: Rebuild Lime CFFI
+        run: haxelib run lime rebuild cpp
+
       - name: Configure Android x64
         if: inputs.name == 'Android x64'
         run: |
