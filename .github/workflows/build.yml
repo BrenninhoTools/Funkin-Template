@@ -61,6 +61,11 @@ jobs:
           haxelib install hmm --quiet
           haxelib run hmm install --quiet
 
+      - name: Build HXCPP tools
+        run: |
+          cd "$(haxelib libpath hxcpp)tools/hxcpp"
+          haxe compile.hxml
+
       - name: Rebuild Lime CFFI
         run: haxelib run lime rebuild cpp
 
