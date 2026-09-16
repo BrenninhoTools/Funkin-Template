@@ -130,19 +130,6 @@ class PolymodHandler
     });
   }
 
-  static function blacklistPackage(pkg:String, ?exclude:String->Bool):Void
-  {
-    for (cls in ClassMacro.listClassesInPackage(pkg))
-    {
-      if (cls == null) continue;
-
-      var className:String = Type.getClassName(cls);
-      if (exclude != null && exclude(className)) continue;
-
-      Polymod.blacklistImport(className);
-    }
-  }
-
   static function buildImports():Void
   {
     static final DEFAULT_IMPORTS:Array<Class<Dynamic>> = [
@@ -215,14 +202,62 @@ class PolymodHandler
     Polymod.blacklistInstanceFields(openfl.net.Socket, ['readObject']);
     Polymod.blacklistInstanceFields(openfl.utils.ByteArray.ByteArrayData, ['readObject']);
 
-    blacklistPackage('funkin.mobile.util');
-    blacklistPackage('extension');
-    blacklistPackage('funkin.api', (className) -> polymod.hscript._internal.PolymodScriptClass.importOverrides.exists(className));
-    blacklistPackage('polymod');
-    blacklistPackage('hscript');
-    blacklistPackage('io.newgrounds');
-    blacklistPackage('sys');
-    blacklistPackage('funkin.util.macro');
+    for (cls in ClassMacro.listClassesInPackage('funkin.mobile.util'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('extension'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('funkin.api'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      if (polymod.hscript._internal.PolymodScriptClass.importOverrides.exists(className)) continue;
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('polymod'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('hscript'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('io.newgrounds'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('sys'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
+
+    for (cls in ClassMacro.listClassesInPackage('funkin.util.macro'))
+    {
+      if (cls == null) continue;
+      var className:String = Type.getClassName(cls);
+      Polymod.blacklistImport(className);
+    }
 
     Polymod.blacklistImport('funkin.external.android.CallbackUtil');
     Polymod.blacklistImport('funkin.external.android.DataFolderUtil');
