@@ -122,6 +122,11 @@ jobs:
       - name: Compile
         run: haxelib run lime build ${{ inputs.buildArgs }}
 
+      - name: List Android build outputs
+        if: (inputs.name == 'Android x64' || inputs.name == 'Android x32') && always()
+        continue-on-error: true
+        run: find export/release/android/bin -type f \( -name "*.apk" -o -name "*.aab" \) -print
+
       - name: Make IPA
         if: inputs.name == 'iOS'
         run: |
