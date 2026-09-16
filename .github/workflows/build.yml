@@ -71,7 +71,6 @@ jobs:
           haxe compile.hxml
 
       - name: Rebuild Lime CFFI
-        if: inputs.name != 'iOS'
         run: haxelib run lime rebuild cpp
 
       - name: Rebuild Lime CFFI (iOS)
