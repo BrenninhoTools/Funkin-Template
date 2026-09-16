@@ -8,6 +8,7 @@ import haxe.io.Bytes;
 import haxe.io.Path;
 import haxe.ds.Map;
 import haxe.xml.Printer;
+import DateTools;
 
 using StringTools;
 using tools.AnsiUtil;
@@ -15,17 +16,17 @@ using tools.AnsiUtil;
 @:nullSafety
 class Project extends HXProject
 {
-  static final VERSION:String = "0.8.7";
+  static var VERSION:String = "0.8.7";
   static final BUILD_NUMBER:Int = 102;
-  static final TITLE:String = "Friday Night Funkin' Template";
-  static final TITLE_MOBILE:String = "FNF: Template";
-  static final PACKAGE_NAME:String = "yourname.funkin.fnf";
-  static final EXECUTABLE_NAME:String = "FunkinTemplate";
-  static final SOURCE_DIR:String = "source";
-  static final TEMPLATES_DIR:String = "templates";
-  static final PRELOADER:String = "funkin.ui.transition.preload.FunkinPreloader";
-  static final MAIN_CLASS:String = "Main";
-  static final COMPANY:String = "The Funkin' Crew";
+  static var TITLE:String = "Friday Night Funkin' Template";
+  static var TITLE_MOBILE:String = "FNF: Template";
+  static var PACKAGE_NAME:String = "yourname.funkin.fnf";
+  static var EXECUTABLE_NAME:String = "FunkinTemplate";
+  static var SOURCE_DIR:String = "source";
+  static var TEMPLATES_DIR:String = "templates";
+  static var PRELOADER:String = "funkin.ui.transition.preload.FunkinPreloader";
+  static var MAIN_CLASS:String = "Main";
+  static var COMPANY:String = "YourName";
   static final LANGUAGES:Array<String> = ["en"];
 
   static var envConfig:Null<Map<String, Dynamic>> = null;
@@ -41,6 +42,8 @@ class Project extends HXProject
 
   static final PREBUILD_HX:String = "source/Prebuild.hx";
   static final POSTBUILD_HX:String = "source/Postbuild.hx";
+
+  static final BUILD_CONFIG_FILE:String = "build-config.json";
 
   static final EXCLUDE_ASSETS:Array<String> = [".*", "cvs", "thumbs.db", "desktop.ini", "*.hash", "*.md"];
   static final EXCLUDE_ASSETS_WEB:Array<String> = ["*.ogg"];
@@ -68,6 +71,7 @@ class Project extends HXProject
     #end
 
     envConfig = readEnvironmentFile("./.env");
+    applyBuildConfigOverrides();
 
     flair();
     displayTarget();
@@ -80,7 +84,9 @@ class Project extends HXProject
     }
 
     configureFeatureFlags();
+    applyFeatureFlagEnvOverrides();
     configureCompileDefines();
+    configureVersionInfo();
     configureIncludeMacros();
     configureCustomMacros();
     configurePolymod();
@@ -117,6 +123,25 @@ class Project extends HXProject
     {
       checkLibraries();
     }
+
+    printBuildSummary();
+  }
+
+  function applyBuildConfigOverrides():Void
+  {
+    if (!FileSystem.exists(BUILD_CONFIG_FILE)) return;
+
+    var overrides:BuildConfigOverrides = haxe.Json.parse(File.getContent(BUILD_CONFIG_FILE));
+
+    if (overrides.version != null) VERSION = overrides.version;
+    if (overrides.title != null) TITLE = overrides.title;
+    if (overrides.titleMobile != null) TITLE_MOBILE = overrides.titleMobile;
+    if (overrides.packageName != null) PACKAGE_NAME = overrides.packageName;
+    if (overrides.executableName != null) EXECUTABLE_NAME = overrides.executableName;
+    if (overrides.company != null) COMPANY = overrides.company;
+    if (overrides.iosTeamId != null) IOS_TEAM_ID = overrides.iosTeamId;
+
+    info('Loaded build configuration overrides from ${BUILD_CONFIG_FILE}.');
   }
 
   function flair()
@@ -380,6 +405,38 @@ class Project extends HXProject
     renderFlagsTable();
   }
 
+  function applyFeatureFlagEnvOverrides():Void
+  {
+    if (envConfig == null) return;
+
+    var overrideCount:Int = 0;
+
+    for (key in envConfig.keys())
+    {
+      if (!key.startsWith("FLAG_")) continue;
+
+      var flagName:String = key.substr("FLAG_".length);
+      var value:String = Std.string(envConfig.get(key)).toLowerCase();
+
+      if (value == "true" || value == "1")
+      {
+        flag(flagName).enable(this);
+        overrideCount++;
+      }
+      else if (value == "false" || value == "0")
+      {
+        flag(flagName).disable(this);
+        overrideCount++;
+      }
+    }
+
+    if (overrideCount > 0)
+    {
+      info('Applied $overrideCount feature flag override(s) from environment.');
+      renderFlagsTable();
+    }
+  }
+
   function renderFlagsTable():Void
   {
     var enabledWidth:Int = 0;
@@ -471,6 +528,15 @@ class Project extends HXProject
       setHaxedef("HXCPP_TRACY_ON_DEMAND");
       setHaxedef("absolute-paths");
     }
+  }
+
+  function configureVersionInfo():Void
+  {
+    setHaxedef("GIT_BRANCH", getGitBranch());
+    setHaxedef("GIT_COMMIT", getGitCommit());
+    setHaxedef("BUILD_DATE", DateTools.format(Date.now(), "%Y-%m-%d %H:%M"));
+    setHaxedef("BUILD_NUMBER_STRING", Std.string(BUILD_NUMBER));
+    setHaxedef("BUILD_COMPANY", COMPANY);
   }
 
   function configureIncludeMacros()
@@ -1469,6 +1535,25 @@ class Project extends HXProject
     }
   }
 
+  function printBuildSummary():Void
+  {
+    if (isDisplay() || isCleanCommand() || isRun() || isInstall()) return;
+
+    var horizontalDivider:String = "".rpad("-", 50);
+
+    info(horizontalDivider);
+    info("BUILD SUMMARY");
+    info(horizontalDivider);
+    info('Title:            $TITLE');
+    info('Package:          $PACKAGE_NAME');
+    info('Company:          $COMPANY');
+    info('Version:          $VERSION (build $BUILD_NUMBER)');
+    info('Git Branch:       ${getGitBranch()}');
+    info('Git Commit:       ${getGitCommit()}');
+    info('Output Directory: ${app.path}');
+    info(horizontalDivider);
+  }
+
   public function readEnvironmentFile(file:String):Null<Map<String, Dynamic>>
   {
     if (!FileSystem.exists(file))
@@ -1514,6 +1599,35 @@ class Project extends HXProject
     }
 
     return env;
+  }
+
+  public function getEnvString(key:String, ?fallback:String):Null<String>
+  {
+    if (envConfig == null) return fallback;
+
+    var value = envConfig.get(key);
+
+    return value != null ? Std.string(value) : fallback;
+  }
+
+  public function getEnvBool(key:String, fallback:Bool = false):Bool
+  {
+    var value = getEnvString(key);
+
+    if (value == null) return fallback;
+
+    return value.toLowerCase() == "true" || value == "1";
+  }
+
+  public function getEnvInt(key:String, fallback:Int = 0):Int
+  {
+    var value = getEnvString(key);
+
+    if (value == null) return fallback;
+
+    var parsed = Std.parseInt(value);
+
+    return parsed != null ? parsed : fallback;
   }
 
   public function shouldExcludeEnvKey(key:String):Bool
@@ -1622,6 +1736,17 @@ typedef FeatureFlagDef =
 {
   var name:String;
   var enabled:Project->Bool;
+}
+
+typedef BuildConfigOverrides =
+{
+  ?version:String,
+  ?title:String,
+  ?titleMobile:String,
+  ?packageName:String,
+  ?executableName:String,
+  ?company:String,
+  ?iosTeamId:String
 }
 
 abstract FeatureFlag(String) from String to String
