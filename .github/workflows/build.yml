@@ -28,6 +28,7 @@ jobs:
   build:
     name: Build
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -38,6 +39,26 @@ jobs:
         uses: krdlab/setup-haxe@master
         with:
           haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Cache Haxelib
+        id: cache-haxelib
+        uses: actions/cache@v4
+        with:
+          path: .haxelib
+          key: ${{ runner.os }}-${{ inputs.name }}-haxelib-${{ env.HAXE_VERSION }}-${{ hashFiles('hmm.json') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ inputs.name }}-haxelib-${{ env.HAXE_VERSION }}-
+
+      - name: Cache Gradle
+        if: inputs.name == 'Android x64' || inputs.name == 'Android x32'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ inputs.name }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ inputs.name }}-
 
       - name: Update APT
         if: inputs.name == 'Linux'
@@ -70,9 +91,6 @@ jobs:
           cd "$(haxelib libpath hxcpp)tools/hxcpp"
           haxe compile.hxml
 
-      - name: Rebuild Lime CFFI
-        run: haxelib run lime rebuild cpp
-
       - name: Configure Android x64
         if: inputs.name == 'Android x64'
         run: |
@@ -89,12 +107,16 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME_17_arm64
           haxelib run lime config ANDROID_SETUP true
 
+      - name: Rebuild Lime CFFI
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
+        run: haxelib run lime rebuild cpp
+
       - name: Rebuild Lime CFFI (Android)
-        if: inputs.name == 'Android x64' || inputs.name == 'Android x32'
+        if: steps.cache-haxelib.outputs.cache-hit != 'true' && (inputs.name == 'Android x64' || inputs.name == 'Android x32')
         run: haxelib run lime rebuild android
 
       - name: Rebuild Lime CFFI (iOS)
-        if: inputs.name == 'iOS'
+        if: steps.cache-haxelib.outputs.cache-hit != 'true' && inputs.name == 'iOS'
         run: haxelib run lime rebuild ios
 
       - name: Compile
