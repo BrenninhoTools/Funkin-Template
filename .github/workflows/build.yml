@@ -71,7 +71,12 @@ jobs:
           haxe compile.hxml
 
       - name: Rebuild Lime CFFI
+        if: inputs.name != 'iOS'
         run: haxelib run lime rebuild cpp
+
+      - name: Rebuild Lime CFFI (iOS)
+        if: inputs.name == 'iOS'
+        run: haxelib run lime rebuild ios
 
       - name: Configure Android x64
         if: inputs.name == 'Android x64'
