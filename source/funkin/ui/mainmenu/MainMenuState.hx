@@ -12,7 +12,6 @@ import flixel.math.FlxPoint;
 import flixel.util.typeLimit.NextState;
 import flixel.util.FlxColor;
 import flixel.tweens.FlxEase;
-import flixel.text.FlxText;
 import funkin.graphics.FunkinCamera;
 import funkin.audio.FunkinSound;
 import funkin.util.SwipeUtil;
@@ -70,7 +69,6 @@ class MainMenuState extends MusicBeatState
 
   var hasUpgraded:Bool = false;
   var upgradeSparkles:FlxTypedSpriteGroup<UpgradeSparkle>;
-  var rightWatermarkText:FlxText;
 
   public function new(_overrideMusic:Bool = false)
   {
@@ -309,13 +307,9 @@ class MainMenuState extends MusicBeatState
 
   function initRightWatermarkText():Void
   {
-    rightWatermarkText = new FlxText(0, 0, 0, "Funkin' Template", 16);
-    rightWatermarkText.setFormat(Paths.font('vcr.ttf'), 16, FlxColor.WHITE, RIGHT, OUTLINE, FlxColor.BLACK);
-    rightWatermarkText.borderSize = 1;
-    rightWatermarkText.scrollFactor.set();
-    rightWatermarkText.x = FlxG.width - rightWatermarkText.width - 10;
-    rightWatermarkText.y = FlxG.height - rightWatermarkText.height - 10;
-    add(rightWatermarkText);
+    if (rightWatermarkText == null) return;
+
+    rightWatermarkText.text = "Funkin' Template";
   }
 
   function playMenuMusic():Void
