@@ -11,37 +11,51 @@ jobs:
             os: windows-2022
             buildArgs: windows
             artifactName: Windows x64
-            artifactPath: export\release\windows\bin\*
+            artifactPath: |
+              export\release\windows\bin\*
+              export\debug\windows\bin\*
           - name: Windows x32
             os: windows-2022
             buildArgs: "windows -32 -D HXCPP_M32 -D 32bits"
             artifactName: Windows x32
-            artifactPath: export\32bit\windows\bin\*
+            artifactPath: |
+              export\32bit\windows\bin\*
+              export\debug\windows\bin\*
           - name: Linux
             os: ubuntu-22.04
             buildArgs: linux
             artifactName: Linux
-            artifactPath: export/release/linux/bin/*
+            artifactPath: |
+              export/release/linux/bin/*
+              export/debug/linux/bin/*
           - name: MacOS
             os: macos-15
             buildArgs: mac
             artifactName: MacOS
-            artifactPath: export/release/macos/bin/*
+            artifactPath: |
+              export/release/macos/bin/*
+              export/debug/macos/bin/*
           - name: Android x64
             os: macos-15
             buildArgs: "android -ONLY_ARM64"
             artifactName: Android x64
-            artifactPath: "export/release/android/bin/app/build/outputs/apk/release/*.apk"
+            artifactPath: |
+              export/release/android/bin/app/build/outputs/apk/release/**/*.apk
+              export/debug/android/bin/app/build/outputs/apk/debug/**/*.apk
           - name: Android x32
             os: macos-15
             buildArgs: "android -ONLY_ARMV7"
             artifactName: Android x32
-            artifactPath: "export/release/android/bin/app/build/outputs/apk/release/*.apk"
+            artifactPath: |
+              export/release/android/bin/app/build/outputs/apk/release/**/*.apk
+              export/debug/android/bin/app/build/outputs/apk/debug/**/*.apk
           - name: iOS
             os: macos-15
             buildArgs: "ios -nosign"
             artifactName: IOS
-            artifactPath: "export/release/ios/build/Release-iphoneos/*.ipa"
+            artifactPath: |
+              export/release/ios/build/Release-iphoneos/*.ipa
+              export/debug/ios/build/Debug-iphoneos/*.ipa
     uses: ./.github/workflows/build.yml
     with:
         name: ${{ matrix.name }}
