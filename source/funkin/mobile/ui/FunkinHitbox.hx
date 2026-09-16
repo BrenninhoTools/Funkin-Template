@@ -29,66 +29,25 @@ enum FunkinHintAlphaStyle
   VISIBLE_TILL_PRESS;
 }
 
-/**
- * The `FunkinHint` class represents a button with HSV color properties, allowing hue and saturation adjustments.
- */
 @:nullSafety
 class FunkinHint extends FunkinButton
 {
-  /**
-   * A map defining different alpha styles for hint visibility during press and release states.
-   *
-   * Each style is represented as a key with an associated array of two alpha values:
-   * - The first value corresponds to the alpha when the hint is pressed.
-   * - The second value corresponds to the alpha when the hint is not pressed.
-   * - The third value corresponds to the duration it'll take to tween between the two values.
-   */
   static final HINT_ALPHA_STYLE:Map<FunkinHintAlphaStyle, Array<Float>> = [
     INVISIBLE_TILL_PRESS => [0.3, 0.00001, 0.01],
     VISIBLE_TILL_PRESS => [0.4, 0.2, 0.08]
   ];
 
-  /**
-   * Indicates whether the hint is pixel.
-   */
   public var isPixel:Bool = false;
 
-  /**
-   * The direction of the note associated with the button.
-   */
   var noteDirection:NoteDirection;
-
-  /**
-   * The label associated with the button.
-   */
   var label:Null<FunkinSprite>;
-
-  /**
-   * The tween used to animate the alpha changes of the button.
-   */
   var labelAlphaTween:Null<FlxTween>;
-
-  /**
-   * The HSV shader used to adjust the hue and saturation of the button.
-   */
   var hsvShader:HSVShader;
-
-  /**
-   * The tween used to animate the alpha changes of the button.
-   */
   var alphaTween:Null<FlxTween>;
 
   var followTarget:Null<FunkinSprite>;
   var followTargetSize:Bool = false;
 
-  /**
-   * Creates a new `FunkinHint` object.
-   *
-   * @param x The x position of the button.
-   * @param y The y position of the button.
-   * @param noteDirection The direction of the note the button represents (e.g. left, right).
-   * @param label An graphic to display as the label on the button.
-   */
   public function new(x:Float, y:Float, noteDirection:NoteDirection, label:Null<FlxGraphic>):Void
   {
     super(x, y);
@@ -108,11 +67,6 @@ class FunkinHint extends FunkinButton
     shader = hsvShader;
   }
 
-  /**
-   * Initializes alpha tween animations for the button.
-   *
-   * @param style The alpha style to use.
-   */
   public function initTween(style:FunkinHintAlphaStyle):Void
   {
     final hintAlpha:Null<Array<Float>> = HINT_ALPHA_STYLE.get(style);
@@ -138,34 +92,20 @@ class FunkinHint extends FunkinButton
 
     alpha = hintAlpha[swapValues ? 0 : 1];
 
-    if (label != null && hintAlpha != null) label.alpha = hintAlpha[0];
+    if (label != null) label.alpha = hintAlpha[0];
   }
 
-  /**
-   * Makes the hitbox follow the specified sprite.
-   *
-   * @param sprite The FunkinSprite instance that the hitbox should follow.
-   * @param followTargetSize A boolean indicating whether the hitbox should adjust to the target's size. Default is true.
-   */
   public function follow(sprite:FunkinSprite, followTargetSize:Bool = true):Void
   {
     this.followTargetSize = followTargetSize;
     followTarget = sprite;
   }
 
-  /**
-   * Desaturates the button, setting its saturation to 0.2.
-   */
   public function desaturate():Void
   {
     hsvShader.saturation = 0.2;
   }
 
-  /**
-   * Sets the hue of the button.
-   *
-   * @param hue The new hue value.
-   */
   public function setHue(hue:Float):Void
   {
     hsvShader.hue = hue;
@@ -177,13 +117,12 @@ class FunkinHint extends FunkinButton
 
     if (followTarget != null)
     {
-      final widthMultiplier:Float = isPixel ? 1.35 : 1.35;
+      final widthMultiplier:Float = 1.35;
       final heightMultiplier:Float = 8;
 
       final xOffset:Float = isPixel ? 43.265 : 0;
       final yOffset:Float = isPixel ? 57.65 : 0;
 
-      // TODO: THIS feels off when playing on regular notes but it's fine for pixel notes? Hard to explain needs more testing
       if (followTargetSize)
       {
         setSize(followTarget.width * widthMultiplier + (isPixel ? 93.05 : 0), followTarget.height * heightMultiplier + (isPixel ? 118 : 0));
@@ -213,15 +152,10 @@ class FunkinHint extends FunkinButton
   }
   #end
 
-  /**
-   * Cleans up memory used by the `FunkinHint`.
-   */
   override public function destroy():Void
   {
     if (alphaTween != null) alphaTween = FlxDestroyUtil.destroy(alphaTween);
-
     if (labelAlphaTween != null) labelAlphaTween = FlxDestroyUtil.destroy(labelAlphaTween);
-
     if (label != null) label = FlxDestroyUtil.destroy(label);
 
     super.destroy();
@@ -255,41 +189,24 @@ enum abstract FunkinHitboxControlSchemes(String) from String to String
   public var Arrows = 'Arrows';
 }
 
-/**
- * This class represents a zone with four buttons, designed to be easily customizable in layout.
- */
 @:nullSafety
 class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
 {
-  /**
-   * Indicates whether the hitbox is pixel.
-   */
   public var isPixel(default, set):Bool = false;
 
-  /**
-   * A `FlxTypedSignal` that triggers every time a button is pressed.
-   */
   public var onHintDown:FlxTypedSignal<FunkinHint->Void> = new FlxTypedSignal<FunkinHint->Void>();
-
-  /**
-   * A `FlxTypedSignal` that triggers every time a button is released.
-   */
   public var onHintUp:FlxTypedSignal<FunkinHint->Void> = new FlxTypedSignal<FunkinHint->Void>();
 
-  /**
-   * The list of tracked inputs for the hitbox.
-   */
   var trackedInputs:Array<FlxActionInput> = [];
 
-  /**
-   * Creates a new `FunkinHitbox` object.
-   */
   public function new(?schemeOverride:String, ?showGradint:Bool = true, ?directionsOverride:Array<NoteDirection>, ?colorsOverride:Array<FlxColor>):Void
   {
     super();
 
-    final hintsColors:Array<FlxColor> = (colorsOverride == null || colorsOverride.length == 0) ? [0xFFC34B9A, 0xFF00FFFF, 0xFF12FB06, 0xFFF9393F] : colorsOverride;
-    final hintsNoteDirections:Array<NoteDirection> = (directionsOverride == null || directionsOverride.length == 0) ? [NoteDirection.LEFT, NoteDirection.DOWN, NoteDirection.UP, NoteDirection.RIGHT] : directionsOverride;
+    final hintsColors:Array<FlxColor> = (colorsOverride == null
+      || colorsOverride.length == 0) ? [0xFFC34B9A, 0xFF00FFFF, 0xFF12FB06, 0xFFF9393F] : colorsOverride;
+    final hintsNoteDirections:Array<NoteDirection> = (directionsOverride == null
+      || directionsOverride.length == 0) ? [NoteDirection.LEFT, NoteDirection.DOWN, NoteDirection.UP, NoteDirection.RIGHT] : directionsOverride;
 
     #if mobile
     final controlsScheme:String = (schemeOverride == null || schemeOverride.length == 0) ? Preferences.controlsScheme : schemeOverride;
@@ -387,6 +304,7 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
   public function getFirstHintByDirection(direction:NoteDirection):Null<FunkinHint>
   {
     var result:Null<FunkinHint> = null;
+
     forEachOfType(FunkinHint, function(hint:FunkinHint):Void
     {
       @:privateAccess
@@ -396,96 +314,51 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
     return result;
   }
 
-  /**
-   * Creates a new `FunkinHint` lane button along side a graphic label with specified properties.
-   *
-   * @param x The x position of the button.
-   * @param y The y position of the button.
-   * @param noteDirection The direction of the note the button represents (e.g. left, right).
-   * @param width The width of the button.
-   * @param height The height of the button.
-   * @param id The ID of the button.
-   * @param color The color of the button.
-   * @return A new `FunkinHint` object.
-   */
+  function wireHintDispatch(hint:FunkinHint):Void
+  {
+    hint.onDown.add(onHintDown.dispatch.bind(hint));
+    hint.onUp.add(onHintUp.dispatch.bind(hint));
+    hint.onOut.add(onHintUp.dispatch.bind(hint));
+  }
+
   function createHintLane(x:Float, y:Float, noteDirection:NoteDirection, width:Int, height:Int, color:FlxColor = 0xFFFFFFFF, label:Bool = true,
       gradient:Bool = true):FunkinHint
   {
     final hint:FunkinHint = new FunkinHint(x, y, noteDirection, label ? createHintLaneLabelGraphic(width, height, Math.floor(height * 0.035), color) : null);
     hint.loadGraphic(createHintLaneGraphic(width, height, color, gradient));
-    hint.onDown.add(onHintDown.dispatch.bind(hint));
-    hint.onUp.add(onHintUp.dispatch.bind(hint));
-    hint.onOut.add(onHintUp.dispatch.bind(hint));
+    wireHintDispatch(hint);
     hint.initTween(INVISIBLE_TILL_PRESS);
     return hint;
   }
 
-  /**
-   * Creates a new `FunkinHint` triangle button with specified properties.
-   *
-   * @param x The x position of the triangle button.
-   * @param y The y position of the triangle button.
-   * @param noteDirection The direction of the note the button represents (e.g. left, right).
-   * @param size The size of the triangle (base length).
-   * @param upright A boolean indicating if the triangle is upright (true) or inverted (false).
-   * @param id The unique ID of the triangle button.
-   * @param color The color of the triangle button (default is white).
-   * @return A new `FunkinHint` triangle object.
-   */
   function createHintTriangle(x:Float, y:Float, noteDirection:NoteDirection, width:Int, height:Int, color:FlxColor = 0xFFFFFFFF,
       gradient:Bool = true):FunkinHint
   {
     final hint:FunkinHint = new FunkinHint(x, y, noteDirection, null);
     hint.loadGraphic(createHintTriangleGraphic(width, height, noteDirection, color, gradient));
-    hint.onDown.add(onHintDown.dispatch.bind(hint));
-    hint.onUp.add(onHintUp.dispatch.bind(hint));
-    hint.onOut.add(onHintUp.dispatch.bind(hint));
+    wireHintDispatch(hint);
     hint.initTween(INVISIBLE_TILL_PRESS);
     hint.polygon = getTriangleVertices(width, height, noteDirection);
     return hint;
   }
 
-  /**
-   * Creates a new `FunkinHint` circular button with specified properties.
-   *
-   * @param x The x position of the circular button.
-   * @param y The y position of the circular button.
-   * @param noteDirection The direction of the note the button represents (e.g., left, right).
-   * @param radius The radius of the circular button.
-   * @param outlineThickness The thickness of the outline for the circle.
-   * @param color The color of the circular button (default is white).
-   * @return A new `FunkinHint` circular object.
-   */
   function createHintCircle(x:Float, y:Float, noteDirection:NoteDirection, radius:Float, outlineThickness:Int, color:FlxColor = 0xFFFFFFFF):FunkinHint
   {
     final hint:FunkinHint = new FunkinHint(x, y, noteDirection, null);
     hint.loadGraphic(createHintCircleGraphic(radius, outlineThickness, color));
     hint.limitToBounds = false;
     hint.radius = radius;
-    hint.onDown.add(onHintDown.dispatch.bind(hint));
-    hint.onUp.add(onHintUp.dispatch.bind(hint));
-    hint.onOut.add(onHintUp.dispatch.bind(hint));
+    wireHintDispatch(hint);
     hint.initTween(VISIBLE_TILL_PRESS);
     return hint;
   }
 
-  /**
-   * Creates a new `FunkinHint` representing a transparent note corresponding to the note from the scene.
-   * @param x The x position of the button.
-   * @param y The y position of the button.
-   * @param noteDirection The direction of the note the button represents (e.g. left, right).
-   * @param width The width of the button.
-   * @param height The height of the button.
-   * @return A new `FunkinHint` object.
-   */
   function createHintTransparentNote(x:Float, y:Float, noteDirection:NoteDirection, width:Int, height:Int):FunkinHint
   {
     final hint:FunkinHint = new FunkinHint(x, y, noteDirection, null);
     hint.alpha = 0;
     hint.setSize(width, height);
-    hint.onDown.add(onHintDown.dispatch.bind(hint));
-    hint.onUp.add(onHintUp.dispatch.bind(hint));
-    hint.onOut.add(onHintUp.dispatch.bind(hint));
+    wireHintDispatch(hint);
 
     var noteStyle:NoteStyle = NoteStyleRegistry.instance.fetchDefault();
     @:privateAccess
@@ -497,26 +370,16 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
 
     hint.animation.play('static', true);
 
-    hint.onDown.add(() ->
+    function playHintAnimation(animationName:String):Void
     {
-      hint.animation.play('press', true);
+      hint.animation.play(animationName, true);
       hint.centerOrigin();
       hint.centerOffsets();
-    });
+    }
 
-    hint.onUp.add(() ->
-    {
-      hint.animation.play('static', true);
-      hint.centerOrigin();
-      hint.centerOffsets();
-    });
-
-    hint.onOut.add(() ->
-    {
-      hint.animation.play('static', true);
-      hint.centerOrigin();
-      hint.centerOffsets();
-    });
+    hint.onDown.add(playHintAnimation.bind('press'));
+    hint.onUp.add(playHintAnimation.bind('static'));
+    hint.onOut.add(playHintAnimation.bind('static'));
 
     hint.centerOffsets();
     hint.centerOrigin();
@@ -524,14 +387,6 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
     return hint;
   }
 
-  /**
-   * Creates a lane graphic for a hint button.
-   *
-   * @param width The width of the graphic.
-   * @param height The height of the graphic.
-   * @param baseColor The base color of the graphic.
-   * @return A `FlxGraphic` object representing the button graphic.
-   */
   function createHintLaneGraphic(width:Int, height:Int, baseColor:FlxColor = 0xFFFFFFFF, gradient:Bool = true):FlxGraphic
   {
     final shape:Shape = new Shape();
@@ -562,15 +417,15 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
     shape.graphics.drawRect(0, 0, width, height);
     shape.graphics.endFill();
 
-    final matrix:Matrix = new Matrix();
-    matrix.createGradientBox(width, labelHeight, Math.PI / 2, 0, 0);
-    shape.graphics.beginGradientFill(LINEAR, [baseColor.rgb, baseColor.rgb], [baseColor.alphaFloat, 0], [0, 255], matrix);
+    final topMatrix:Matrix = new Matrix();
+    topMatrix.createGradientBox(width, labelHeight, Math.PI / 2, 0, 0);
+    shape.graphics.beginGradientFill(LINEAR, [baseColor.rgb, baseColor.rgb], [baseColor.alphaFloat, 0], [0, 255], topMatrix);
     shape.graphics.drawRect(0, 0, width, labelHeight);
     shape.graphics.endFill();
 
-    final matrix:Matrix = new Matrix();
-    matrix.createGradientBox(width, labelHeight, Math.PI / 2, 0, height - labelHeight);
-    shape.graphics.beginGradientFill(LINEAR, [baseColor.rgb, baseColor.rgb], [0, baseColor.alphaFloat], [0, 255], matrix);
+    final bottomMatrix:Matrix = new Matrix();
+    bottomMatrix.createGradientBox(width, labelHeight, Math.PI / 2, 0, height - labelHeight);
+    shape.graphics.beginGradientFill(LINEAR, [baseColor.rgb, baseColor.rgb], [0, baseColor.alphaFloat], [0, 255], bottomMatrix);
     shape.graphics.drawRect(0, height - labelHeight, width, labelHeight);
     shape.graphics.endFill();
 
@@ -579,14 +434,6 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
     return FlxGraphic.fromBitmapData(graphicData, false, null, false);
   }
 
-  /**
-   * Creates a triangle graphic for a hint button.
-   *
-   * @param size The base length of the triangle.
-   * @param upright A boolean indicating if the triangle is upright (true) or inverted (false).
-   * @param baseColor The base color of the triangle graphic (default is white).
-   * @return A `FlxGraphic` object representing the triangle button graphic.
-   */
   function createHintTriangleGraphic(width:Int, height:Int, facing:NoteDirection, baseColor:FlxColor = 0xFFFFFFFF, gradient:Bool = true):FlxGraphic
   {
     final shape:Shape = new Shape();
@@ -611,14 +458,6 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
     return FlxGraphic.fromBitmapData(graphicData, false, null, false);
   }
 
-  /**
-   * Creates a circular graphic for a hint button.
-   *
-   * @param radius The radius of the circle.
-   * @param baseColor The base color of the circle graphic (default is white).
-   * @param outlineThickness The thickness of the outline for the circle.
-   * @return A `FlxGraphic` object representing the circular button graphic.
-   */
   function createHintCircleGraphic(radius:Float, outlineThickness:Int, baseColor:FlxColor = 0xFFFFFFFF):FlxGraphic
   {
     var brightColor:FlxColor = baseColor;
@@ -640,13 +479,6 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
     return FlxGraphic.fromBitmapData(graphicData, false, null, false);
   }
 
-  /**
-   * Сalculates vertices in a given direction
-   * @param width width of triangle
-   * @param height height of triangle
-   * @param facing The side the triangle faces
-   * @return array of vertices
-   */
   function getTriangleVertices(width:Int, height:Int, facing:NoteDirection):Array<Float>
   {
     if (facing == UP) facing = DOWN;
@@ -654,48 +486,13 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
 
     return switch (facing)
     {
-      case UP:
-        [
-          width / 2,
-          0,
-          0,
-          height,
-          width,
-          height
-        ];
-      case DOWN:
-        [
-          0,
-          0,
-          width,
-          0,
-          width / 2,
-          height
-        ];
-      case LEFT:
-        [
-          0,
-          0,
-          width,
-          height / 2,
-          0,
-          height
-        ];
-      case RIGHT:
-        [
-          width,
-          0,
-          0,
-          height / 2,
-          width,
-          height
-        ];
+      case UP: [width / 2, 0, 0, height, width, height];
+      case DOWN: [0, 0, width, 0, width / 2, height];
+      case LEFT: [0, 0, width, height / 2, 0, height];
+      case RIGHT: [width, 0, 0, height / 2, width, height];
     }
   }
 
-  /**
-   * Cleans up memory used by the `FunkinHitbox`.
-   */
   override public function destroy():Void
   {
     if (trackedInputs != null && trackedInputs.length > 0) ControlsHandler.removeCachedInput(PlayerSettings.player1.controls, trackedInputs);
@@ -710,10 +507,12 @@ class FunkinHitbox extends FlxTypedSpriteGroup<FunkinHint>
   function set_isPixel(value:Bool):Bool
   {
     isPixel = value;
+
     forEachOfType(FunkinHint, function(hint:FunkinHint):Void
     {
       hint.isPixel = value;
     });
+
     return value;
   }
 }
