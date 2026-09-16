@@ -70,6 +70,9 @@ jobs:
           cd "$(haxelib libpath hxcpp)tools/hxcpp"
           haxe compile.hxml
 
+      - name: Rebuild Lime CFFI
+        run: haxelib run lime rebuild cpp
+
       - name: Configure Android x64
         if: inputs.name == 'Android x64'
         run: |
@@ -86,16 +89,13 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME_17_arm64
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Rebuild Lime CFFI
-        run: haxelib run lime rebuild cpp
+      - name: Rebuild Lime CFFI (Android)
+        if: inputs.name == 'Android x64' || inputs.name == 'Android x32'
+        run: haxelib run lime rebuild android
 
       - name: Rebuild Lime CFFI (iOS)
         if: inputs.name == 'iOS'
         run: haxelib run lime rebuild ios
-
-      - name: Rebuild Lime CFFI (Android)
-        if: inputs.name == 'Android x64' || inputs.name == 'Android x32'
-        run: haxelib run lime rebuild android
 
       - name: Compile
         run: haxelib run lime build ${{ inputs.buildArgs }}
