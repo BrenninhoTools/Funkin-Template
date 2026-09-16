@@ -97,8 +97,8 @@ class MobileOptions extends Page<OptionsMenuPageName>
       "Four Lanes" => FunkinHitboxControlSchemes.FourLanes
     ], function(key:String, value:FunkinHitboxControlSchemes):Void
     {
-      Preferences.controlsScheme = value;
-    }, switch (Preferences.controlsScheme)
+      funkin.Preferences.controlsScheme = value;
+    }, switch (funkin.Preferences.controlsScheme)
       {
         case FunkinHitboxControlSchemes.FourLanes:
           "Four Lanes";
