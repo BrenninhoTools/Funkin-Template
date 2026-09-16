@@ -17,7 +17,7 @@ using tools.AnsiUtil;
 class Project extends HXProject
 {
   static var VERSION:String = "0.8.7";
-  static final BUILD_NUMBER:Int = 102;
+  static var BUILD_NUMBER:Int = 102;
   static var TITLE:String = "Friday Night Funkin' Template";
   static var TITLE_MOBILE:String = "FNF: Template";
   static var PACKAGE_NAME:String = "yourname.funkin.fnf";
@@ -44,6 +44,14 @@ class Project extends HXProject
   static final POSTBUILD_HX:String = "source/Postbuild.hx";
 
   static final BUILD_CONFIG_FILE:String = "build-config.json";
+  static final BUILD_NUMBER_FILE:String = ".build-number";
+
+  static final FEATURE_REQUIREMENTS:Map<String, String> = [
+    "FEATURE_MOBILE_AGESIGNALS" => "Requires the DeclaredAgeRange framework linked in Xcode and an iOS 18.0+ deployment target. Only enable this if your Apple Developer account has Age Range Signals configured.",
+    "FEATURE_MOBILE_ADVERTISEMENTS" => "Requires ADMOB_APP_ID in your .env file and AdMob configured for this app in your Google/Apple developer accounts.",
+    "FEATURE_MOBILE_IAP" => "Requires in-app purchase products configured in App Store Connect and/or the Google Play Console.",
+    "FEATURE_DISCORD_RPC" => "Requires a Discord application configured for use with hxdiscord_rpc."
+  ];
 
   static final EXCLUDE_ASSETS:Array<String> = [".*", "cvs", "thumbs.db", "desktop.ini", "*.hash", "*.md"];
   static final EXCLUDE_ASSETS_WEB:Array<String> = ["*.ogg"];
@@ -72,6 +80,7 @@ class Project extends HXProject
 
     envConfig = readEnvironmentFile("./.env");
     applyBuildConfigOverrides();
+    applyBuildNumberOverride();
 
     flair();
     displayTarget();
@@ -85,6 +94,7 @@ class Project extends HXProject
 
     configureFeatureFlags();
     applyFeatureFlagEnvOverrides();
+    warnRiskyFeatureFlags();
     configureCompileDefines();
     configureVersionInfo();
     configureIncludeMacros();
@@ -140,8 +150,31 @@ class Project extends HXProject
     if (overrides.executableName != null) EXECUTABLE_NAME = overrides.executableName;
     if (overrides.company != null) COMPANY = overrides.company;
     if (overrides.iosTeamId != null) IOS_TEAM_ID = overrides.iosTeamId;
+    if (overrides.buildNumber != null) BUILD_NUMBER = overrides.buildNumber;
 
     info('Loaded build configuration overrides from ${BUILD_CONFIG_FILE}.');
+  }
+
+  function applyBuildNumberOverride():Void
+  {
+    var githubRunNumber:Null<String> = Sys.getEnv("GITHUB_RUN_NUMBER");
+
+    if (githubRunNumber != null)
+    {
+      var parsed:Null<Int> = Std.parseInt(githubRunNumber);
+
+      if (parsed != null)
+      {
+        BUILD_NUMBER = parsed;
+        return;
+      }
+    }
+
+    if (!FileSystem.exists(BUILD_NUMBER_FILE)) return;
+
+    var fileValue:Null<Int> = Std.parseInt(File.getContent(BUILD_NUMBER_FILE).trim());
+
+    if (fileValue != null) BUILD_NUMBER = fileValue;
   }
 
   function flair()
@@ -376,7 +409,7 @@ class Project extends HXProject
       {name: "FEATURE_MOBILE_IAP", enabled: (p) -> (p.isMobile() && p.isRelease()) && envConfig != null},
       {name: "FEATURE_MOBILE_IAR", enabled: (p) -> p.isMobile() && p.isRelease()},
       {name: "FEATURE_MOBILE_WEBVIEW", enabled: (p) -> p.isMobile() && p.flag("FEATURE_NEWGROUNDS").isEnabled(p)},
-      {name: "FEATURE_MOBILE_AGESIGNALS", enabled: (p) -> p.isMobile() && p.isRelease()},
+      {name: "FEATURE_MOBILE_AGESIGNALS", enabled: (p) -> false},
       {name: "FEATURE_GHOST_TAPPING", enabled: (p) -> p.isMobile()},
       {name: "FEATURE_COMPRESSED_TEXTURES", enabled: (p) -> p.isMobile() && p.isRelease() && !p.isIOSSimulator()},
       {name: "FEATURE_DEBUG_DISPLAY", enabled: (p) -> !p.isMobile() || p.flag("FEATURE_DEBUG_FUNCTIONS").isEnabled(p)},
@@ -435,6 +468,22 @@ class Project extends HXProject
       info('Applied $overrideCount feature flag override(s) from environment.');
       renderFlagsTable();
     }
+  }
+
+  function warnRiskyFeatureFlags():Void
+  {
+    var warnedCount:Int = 0;
+
+    for (flagName => requirement in FEATURE_REQUIREMENTS)
+    {
+      if (flag(flagName).isEnabled(this))
+      {
+        warn('$flagName is enabled: $requirement'.bold().yellow());
+        warnedCount++;
+      }
+    }
+
+    if (warnedCount > 0) Sys.println('');
   }
 
   function renderFlagsTable():Void
@@ -694,6 +743,12 @@ class Project extends HXProject
     final documentTypes:String = File.getContent("documentTypes.plist");
 
     pushConfigArrayString('ios.info-plist-children', documentTypes);
+
+    if (flag("FEATURE_MOBILE_AGESIGNALS").isEnabled(this))
+    {
+      config.set("ios.deployment", "18.0");
+      warn("FEATURE_MOBILE_AGESIGNALS is enabled: bumping the iOS deployment target to 18.0 for DeclaredAgeRange support.".bold().yellow());
+    }
   }
 
   function configurePolymod()
@@ -1746,7 +1801,8 @@ typedef BuildConfigOverrides =
   ?packageName:String,
   ?executableName:String,
   ?company:String,
-  ?iosTeamId:String
+  ?iosTeamId:String,
+  ?buildNumber:Int
 }
 
 abstract FeatureFlag(String) from String to String
