@@ -97,6 +97,35 @@ jobs:
           echo "=== funkin.vis ==="
           haxelib list | grep -i "funkin" || echo "funkin.vis not found in haxelib list"
 
+      - name: Configure and Validate Android Keystore
+        if: inputs.name == 'Android x64' || inputs.name == 'Android x32'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 secret not set - building without a release keystore (unsigned/debug-signed APK)."
+            exit 0
+          fi
+
+          KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
+
+          if ! "$JAVA_HOME_17_arm64/bin/keytool" -list -v \
+            -keystore "$KEYSTORE_FILE" \
+            -alias "$ANDROID_KEYSTORE_ALIAS" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" > /dev/null 2>&1; then
+            echo "::error::Keystore validation failed - check that ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_ALIAS and ANDROID_KEYSTORE_PASSWORD are correct."
+            exit 1
+          fi
+
+          echo "Keystore validated successfully for alias '$ANDROID_KEYSTORE_ALIAS'."
+
+          echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> .env
+          echo "KEYSTORE_ALIAS=$ANDROID_KEYSTORE_ALIAS" >> .env
+          echo "KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> .env
+
       - name: Build HXCPP tools
         run: |
           cd "$(haxelib libpath hxcpp)tools/hxcpp"
