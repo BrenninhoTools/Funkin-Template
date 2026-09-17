@@ -86,6 +86,17 @@ jobs:
           haxelib install hmm --quiet
           haxelib run hmm install --quiet
 
+      - name: List Installed Library Versions
+        run: |
+          echo "=== Full haxelib list ==="
+          haxelib list
+          echo ""
+          echo "=== openfl ==="
+          haxelib list | grep -i openfl || echo "openfl not found in haxelib list"
+          echo ""
+          echo "=== funkin.vis ==="
+          haxelib list | grep -i "funkin" || echo "funkin.vis not found in haxelib list"
+
       - name: Build HXCPP tools
         run: |
           cd "$(haxelib libpath hxcpp)tools/hxcpp"
@@ -125,7 +136,7 @@ jobs:
       - name: List Android build outputs
         if: (inputs.name == 'Android x64' || inputs.name == 'Android x32') && always()
         continue-on-error: true
-        run: find export/release/android/bin -type f \( -name "*.apk" -o -name "*.aab" \) -print
+        run: find export -type f \( -name "*.apk" -o -name "*.aab" \) -print
 
       - name: Make IPA
         if: inputs.name == 'iOS'
